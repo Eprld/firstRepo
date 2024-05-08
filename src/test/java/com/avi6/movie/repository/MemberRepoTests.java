@@ -25,6 +25,8 @@ public class MemberRepoTests {
 					.build();
 			
 			memberRepository.save(member);
+			
+			//이건 주석입니다
 		});
 	}
 }
