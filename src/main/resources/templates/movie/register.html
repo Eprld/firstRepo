@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<th:block th:replace="~{/layout/basic :: setContent(~{this::content} )}">
+
+    <th:block th:fragment="content">
+
+        <h1 class="mt-4">Movie Register Page</h1>
+
+        <form th:action="@{/movie/register}" method="post">
+            <div class="form-group">
+                <label >Title</label>
+                <input type="text" class="form-control" name="title" placeholder="Enter Title">
+            </div>
+
+            <div class="form-group fileForm">
+                <label >Image Files</label>
+                <div class="custom-file">
+                    <input type="file"  class="custom-file-input files" id="fileInput" multiple>
+                    <label class="custom-file-label" data-browse="Browse"></label>
+                </div>
+            </div>
+
+            <div class="box">
+
+            </div>
+
+            <style>
+                .uploadResult {
+                    width: 100%;
+                    background-color: gray;
+                    margin-top: 10px;
+                }
+
+                .uploadResult ul {
+                    display: flex;
+                    flex-flow: row;
+                    justify-content: center;
+                    align-items: center;
+                    vertical-align: top;
+                    overflow: auto;
+                }
+
+                .uploadResult ul li {
+                    list-style: none;
+                    padding: 10px;
+                    margin-left: 2em;
+                }
+
+                .uploadResult ul li img {
+                    width: 100px;
+                }
+            </style>
+
+            <div class="uploadResult">
+                <ul>
+						
+                </ul>
+            </div>		
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+
+            <script>
+    $(document).ready(function(e) {
+    	
+    	let regex = new RegExp("(.*?)\.(exe|sh|zip|tiff)$");//업로드 확장자 조회 pattern
+    	let maxSize = 10485670; //@10MB
+    	
+    	function checkExtension(fileName, fileSize){
+    		if(fileSize >= maxSize){
+    			alert("10MB 초과");
+    			return;
+    		}
+    		if(regex.text(fileName)){
+    			//위 확장자 중 하나라도 걸리면
+    			alert(fileName + "업로드 불가함");
+    			return;
+    		}
+    		return true;//모두 정상일 때 true 리턴
+    	}//end of checkExt
+    	
+    	//파일 선택 input 에 change 이벤트를 걸어서, 파일의 path 를 분리해서 파일명만 받아내고
+    	//이렇게 선택된 파일을 검증후에, ajax 를 통해 uploadController 에게 등록요청을 보냅니다.
+    	
+    	$(".custom-file-input").on("change",(event)=>{
+			let fullPath = $(event.target).val();
+    		//배열로 나눔 split("\\")
+    		let fileName = fullPath.split("\\").pop();
+    		
+    		let curr = $(event.target);
+    		
+    		$(".custom-file-label").addClass("selected").html(fileName);
+ 
+    		//formData 객체를 생성해서, 선택된 파일을 input 하도록 합니다.
+    		let formData = new FormData();
+    		
+    		let inputFile = $(event.target);
+    		
+    		let files = inputFile[0].files;
+    		
+    		let append = false; //추가된 파일 내부에 대한 변수,,
+    		
+    		for(let i = 0; i<files.length; i++){
+    			formData.append("uploadFiles",files[i]);
+    			append = true; //파일전송 formData 생성 완료.
+    		}
+    		
+    		for(var val of formData.values()){
+    			console.log(val);
+    		}
+    		//ajax 를 통해서 파일을 전송하도록 함
+    		$.ajax({
+    			url:'/uploadAjax',
+    			processData:false,
+    			contentType:false,
+    			data:formData,
+    			type:'POST',
+    			dataType:'json',
+    			success:(res)=>{
+    				console.log("업로드 성공시 서버 리턴값 " +  res);
+    				
+    				//업로드 완료후 지정도니 내용을 받아서 화면에 출력시키도록 Jquery 작성
+    				//여기서는 위에 선언된 uploadResult div 에 link 를 담아서 링크만 보여주도록 처리할 거고
+    				//이 링크를 클릭하면, 해당 URL 정보를 get 해서 이미지를 보여주도록 서버에 요청하도록 합니다.
+    				//그럼 서버 컨트롤러는 준비된 path 에서 해당 요청 URL 을 decode 한 후에 이미지를 보여주는 Viewer 를 제공함
+    				showUpImages(res);
+    				
+    			},
+    			error:(errStatus)=>{
+    				console.log("파일 업로드시 에러 상태 코드내용 " + errStatus);
+    			}		
+    		});	//end ajax
+    
+    	});//end of change
+    	
+    	//업로드된 이미지 보여주기
+    	function showUpImages(resArr){
+            //div 찾아내기
+            let div = $('.uploadResult ul');
+            
+            //동적 div 생성 변수 선언 여기에 각 DTO 의 내용이 하나씩 담겨 출력될 예정,, 문자열로 tag 구성
+            let d_Div = "";
+            
+            let tag = "";
+            
+            /*
+            for(let i = 0; i <resArr.length; i++){
+                tag += "<div> <img src='/display?fileName=" + resArr[i].thumImgURL + "'>";
+               tag += "<button class='removeBtn' data_name'" + resArr[i].thumImgURL +"'>Remove</button></div>";
+            }*/
+            
+            $(resArr).each((i,dto)=>{
+               tag += "<li data-name='" + dto.fileName + "' data-path='" + dto.folderPath + "' data-uuid='" + dto.uuid + "'>";
+               tag += "<div><button class='removeBtn' data-file=\'" + dto.thumImgURL+"' class='btn-warning btn-sm'>Remove</button></div><br>";
+                tag += "<img src='/display?fileName=" + dto.thumImgURL + "'></div></li>";
+                console.log(dto.fileName + dto.folderPath + dto.uuid)
+            })
+            div.append(tag);
+         }
+    	//remove 버튼 클릭시 이벤트 핸들링
+    	$('.uploadResult').on('click','.removeBtn',(evt)=>{
+    		evt.preventDefault();
+    		let target = $(evt.currentTarget);
+    		let fileName = target.data("file");
+    		let targetLi = target.closest('li');
+    		
+    		console.log(fileName);
+    		
+    		/*  $.post('/removeFile',{fileName:fileName},(res)=>{
+    			console.log(res);
+    			if(res == true){
+    				targetLi.remove(); //dom 삭제.
+    				
+    			}
+    		});  */
+    		
+    		 $.ajax({
+    			url:'/removeFile',
+    			data:{fileName:fileName},
+    			type:'POST',
+    			dataType:'text',
+    			success:(res)=>{
+    				console.log("업로드 성공시 서버 리턴값 " +  res);
+    				
+    				//업로드 완료후 지정도니 내용을 받아서 화면에 출력시키도록 Jquery 작성
+    				//여기서는 위에 선언된 uploadResult div 에 link 를 담아서 링크만 보여주도록 처리할 거고
+    				//이 링크를 클릭하면, 해당 URL 정보를 get 해서 이미지를 보여주도록 서버에 요청하도록 합니다.
+    				//그럼 서버 컨트롤러는 준비된 path 에서 해당 요청 URL 을 decode 한 후에 이미지를 보여주는 Viewer 를 제공함
+    				targetLi.remove();
+    				
+    			},
+    			error:(errStatus)=>{
+    				console.log("파일 업로드시 에러 상태 코드내용 " + errStatus);
+    			}		
+    		});	//end ajax 
+    	});
+		
+        let str = "";
+        $('.btn-primary').on('click',(e)=>{
+           	
+           $('.uploadResult li').each((i, obj)=>{
+              let target = $(obj);
+              str += "<input type='hidden' name= 'imageDTOList[" + i + "].imgName' value= '" + target.data('name') + "'>"; 
+              str += "<input type='hidden' name= 'imageDTOList[" + i + "].path' value= '" + target.data('path') + "'>"; 
+              str += "<input type='hidden' name= 'imageDTOList[" + i + "].uuid' value= '" + target.data('uuid') + "'>"; 
+                 
+              
+           });
+           
+           $('.box').html(str);
+           $('form').submit();
+        })
+	
+
+    }); //document ready
+</script>
+
+    </th:block>
+
+</th:block>
